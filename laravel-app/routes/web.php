@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\ForecastingController;
 use App\Http\Controllers\Admin\PendapatanController;
 use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Support\Facades\Route;
@@ -24,4 +25,9 @@ Route::middleware(['auth'])->group(function () {
 
     // Admin Pendapatan Route
     Route::resource('pendapatan', PendapatanController::class);
+
+    // Admin Forecast Route
+    Route::get('/forecasting', [ForecastingController::class, 'index'])->name('forecasting.index');
+    Route::post('/forecasting/train', [ForecastingController::class, 'train'])->name('forecasting.train');
+    Route::post('/forecasting/predict', [ForecastingController::class, 'predict'])->name('forecasting.predict');
 });
