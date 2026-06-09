@@ -3,14 +3,22 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Imports\PendapatanImport;
 use App\Models\Pendapatan;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class PendapatanController extends Controller
 {
     public function index()
     {
-        $pendapatans = Pendapatan::orderBy('tanggal', 'desc')->get();
+        $query = Pendapatan::query();
+
+        if (request('tanggal_awal') && request('tanggal_akhir')) {
+            $query->whereBetween('tanggal', [request('tanggal_awal'), request('tanggal_akhir')]);
+        }
+
+        $pendapatans = $query->orderBy('tanggal', 'desc')->get();
 
         return view('Admin.pendapatan.index', compact('pendapatans'));
     }
@@ -20,13 +28,14 @@ class PendapatanController extends Controller
         try {
             $request->validate(
                 [
-                    'tanggal' => 'required|date',
+                    'tanggal' => 'required|date|unique:pendapatans,tanggal',
                     'pendapatan' => 'required|numeric',
                     'keterangan' => 'nullable|string',
                 ],
                 [
                     'tanggal.required' => 'Tanggal harus diisi.',
                     'tanggal.date' => 'Tanggal tidak valid.',
+                    'tanggal.unique' => 'Tanggal sudah ada.',
                     'pendapatan.required' => 'Pendapatan harus diisi.',
                     'pendapatan.numeric' => 'Pendapatan harus berupa angka.',
                     'keterangan.string' => 'Keterangan harus berupa teks.',
@@ -48,7 +57,7 @@ class PendapatanController extends Controller
         try {
             $request->validate(
                 [
-                    'tanggal' => 'required|date',
+                    'tanggal' => 'required|date|unique:pendapatans,tanggal,' . $id,
                     'pendapatan' => 'required|numeric',
                     'keterangan' => 'nullable|string',
                 ],
@@ -84,5 +93,16 @@ class PendapatanController extends Controller
                 ->route('pendapatan.index')
                 ->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv',
+        ]);
+
+        Excel::import(new PendapatanImport(), $request->file('file'));
+
+        return back()->with('success', 'Dataset berhasil diimport');
     }
 }

@@ -3,8 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Evaluasi;
 use App\Models\Forecasting;
+use App\Models\HasilPrediksi;
 use App\Models\Pendapatan;
+use App\Models\TestingPrediction;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
@@ -14,26 +18,54 @@ class ForecastingController extends Controller
     {
         $forecastings = Forecasting::latest()->get();
 
-        $labels = $forecastings->pluck('tanggal_prediksi');
+        $totalData = Pendapatan::count();
 
-        $data = $forecastings->pluck('hasil_prediksi');
+        $tanggalAwal = Pendapatan::min('tanggal');
 
-        // dummy evaluasi sementara
-        $mae = 0.12;
-        $rmse = 0.2;
-        $mape = 5.1;
+        $tanggalAkhir = Pendapatan::max('tanggal');
 
-        return view('Admin.forecasting.index', compact('forecastings', 'labels', 'data', 'mae', 'rmse', 'mape'));
+        // Grafik Evaluasi
+        $labels = HasilPrediksi::orderBy('tanggal')->pluck('tanggal');
+
+        $actualData = HasilPrediksi::orderBy('tanggal')->pluck('aktual');
+
+        $prediksiData = HasilPrediksi::orderBy('tanggal')->pluck('prediksi');
+
+        return view('Admin.forecasting.index', compact('forecastings', 'totalData', 'tanggalAwal', 'tanggalAkhir', 'labels', 'actualData', 'prediksiData'));
     }
 
     // TRAIN MODEL
     public function train()
     {
-        $pendapatan = Pendapatan::orderBy('tanggal')->get(['pendapatan']);
+        $pendapatan = Pendapatan::orderBy('tanggal')->pluck('pendapatan')->toArray();
 
-        $response = Http::post('http://127.0.0.1:5000/train', [
+        $response = Http::timeout(300)->post('http://127.0.0.1:5000/train', [
             'pendapatan' => $pendapatan,
         ]);
+
+        $result = $response->json();
+
+        if (!$response->successful()) {
+            return back()->with('error', 'Training gagal');
+        }
+
+        Evaluasi::create([
+            'mae' => $result['mae'],
+            'rmse' => $result['rmse'],
+            'mape' => $result['mape'],
+            'epoch' => $result['epoch'],
+            'loss' => $result['loss'],
+        ]);
+
+        HasilPrediksi::truncate();
+
+        foreach ($result['historical'] as $item) {
+            HasilPrediksi::create([
+                'tanggal' => $item['tanggal'],
+                'aktual' => $item['aktual'],
+                'prediksi' => $item['prediksi'],
+            ]);
+        }
 
         return back()->with('success', 'Training model berhasil');
     }
@@ -41,10 +73,79 @@ class ForecastingController extends Controller
     // FORECAST
     public function predict()
     {
-        $pendapatan = Pendapatan::orderBy('tanggal')->pluck('pendapatan')->map(fn($item) => (float) $item)->values()->toArray();
+        // ==========================
+        // TRAIN MODEL
+        // ==========================
 
-        $response = Http::post('http://127.0.0.1:5000/forecast', [
-            'pendapatan' => $pendapatan,
+        try {
+            $trainResponse = Http::timeout(300)->post('http://127.0.0.1:5000/train', [
+                'pendapatan' => Pendapatan::orderBy('tanggal')->pluck('pendapatan')->toArray(),
+
+                'tanggal' => Pendapatan::orderBy('tanggal')->pluck('tanggal')->toArray(),
+            ]);
+        } catch (\Exception $e) {
+            dd($e->getMessage());
+        }
+
+        if (!$trainResponse->successful()) {
+            return back()->with('error', 'Training model gagal');
+        }
+
+        $trainResult = $trainResponse->json();
+
+        // dd($trainResult);
+
+        // ==========================
+        // SIMPAN EVALUASI
+        // ==========================
+
+        Evaluasi::create([
+            'mae' => $trainResult['mae'],
+            'rmse' => $trainResult['rmse'],
+            'mape' => $trainResult['mape'],
+            'epoch' => $trainResult['epoch'],
+            'loss' => $trainResult['loss'],
+            'loss_history' => json_encode($trainResult['loss_history']),
+        ]);
+
+        // ==========================
+        // SIMPAN HISTORICAL PREDICTION
+        // ==========================
+
+        HasilPrediksi::truncate();
+
+        TestingPrediction::truncate();
+
+        if (isset($trainResult['testing'])) {
+            foreach ($trainResult['testing'] as $item) {
+                TestingPrediction::create([
+                    'aktual' => $item['aktual'],
+
+                    'prediksi' => $item['prediksi'],
+
+                    'selisih' => $item['selisih'],
+                ]);
+            }
+        }
+
+        if (isset($trainResult['historical'])) {
+            foreach ($trainResult['historical'] as $item) {
+                HasilPrediksi::create([
+                    'tanggal' => Carbon::parse($item['tanggal'])->format('Y-m-d'),
+
+                    'aktual' => $item['aktual'],
+
+                    'prediksi' => $item['prediksi'],
+                ]);
+            }
+        }
+
+        // ==========================
+        // FORECAST 7 HARI
+        // ==========================
+
+        $response = Http::timeout(300)->post('http://127.0.0.1:5000/forecast', [
+            'pendapatan' => Pendapatan::orderBy('tanggal')->pluck('pendapatan')->map(fn($item) => (float) $item)->values()->toArray(),
         ]);
 
         $result = $response->json();
@@ -53,9 +154,13 @@ class ForecastingController extends Controller
             return back()->with('error', $result['message'] ?? 'Forecast gagal');
         }
 
+        Forecasting::truncate();
+
+        $lastDate = Pendapatan::max('tanggal');
+
         foreach ($result['forecast'] as $index => $value) {
             Forecasting::create([
-                'tanggal_prediksi' => now()->addDays($index + 1),
+                'tanggal_prediksi' => \Carbon\Carbon::parse($lastDate)->addDays($index + 1),
 
                 'hasil_prediksi' => $value,
 
@@ -63,6 +168,6 @@ class ForecastingController extends Controller
             ]);
         }
 
-        return back()->with('success', 'Forecasting 7 hari berhasil');
+        return back()->with('success', 'Forecasting berhasil');
     }
 }

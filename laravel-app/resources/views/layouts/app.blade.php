@@ -1,55 +1,41 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id" class="h-full bg-[#f8fafc]">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Forecasting Warung</title>
+    <title>@yield('title', 'Smart Forecasting Warung Madura')</title>
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
-    <style>
-        body {
-            background-color: #f5f6fa;
-        }
-
-        .sidebar {
-            width: 250px;
-            height: 100vh;
-            position: fixed;
-            background: #212529;
-            color: white;
-        }
-
-        .content {
-            margin-left: 250px;
-            padding: 20px;
-        }
-
-        .sidebar a {
-            color: white;
-            text-decoration: none;
-            display: block;
-            padding: 12px;
-        }
-
-        .sidebar a:hover {
-            background: #343a40;
-        }
-    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 
-<body>
+<body class="h-full font-sans antialiased bg-[#f1f5f9] text-slate-800">
 
-    @include('layouts.sidebar')
+    <div class="min-h-screen flex bg-[#f8fafc]">
 
-    <div class="content">
+        <aside
+            class="fixed inset-y-0 left-0 z-20 w-[280px] bg-gradient-to-b from-slate-900 via-slate-950 to-slate-950 text-slate-300 hidden md:flex flex-col border-r border-slate-800/40">
+            @include('layouts.sidebar')
+        </aside>
 
-        @include('layouts.navbar')
+        <div class="flex-1 flex flex-col pl-0 md:pl-[280px] min-h-screen bg-[#f8fafc]">
 
-        @yield('content')
+            <header class="sticky top-0 z-10 bg-white border-b border-slate-100 shadow-sm shadow-slate-100/40">
+                @include('layouts.navbar')
+            </header>
+
+            <main class="flex-1 p-6 md:p-8 bg-[#f8fafc]">
+                @yield('content')
+            </main>
+
+        </div>
 
     </div>
+
+    @yield('scripts')
 
 </body>
 

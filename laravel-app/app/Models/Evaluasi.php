@@ -13,5 +13,6 @@ class Evaluasi extends Model
         'rmse' => 'float',
         'mape' => 'float',
         'loss' => 'float',
+        'loss_history' => 'array',
     ];
 }

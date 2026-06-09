@@ -8,6 +8,11 @@ from sklearn.preprocessing import MinMaxScaler
 
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense
+from sklearn.metrics import (
+    mean_absolute_error,
+    mean_squared_error,
+    mean_absolute_percentage_error
+)
 
 import joblib
 import os
@@ -29,32 +34,89 @@ def train_model():
 
         pendapatan = data['pendapatan']
 
-        df = pd.DataFrame(pendapatan)
-
-        values = df['pendapatan'].values.reshape(-1,1)
+        values = np.array(
+            pendapatan,
+            dtype=float
+        ).reshape(-1,1)
 
         scaler = MinMaxScaler()
 
         scaled = scaler.fit_transform(values)
 
-        X = []
-        y = []
+        # =========================
+        # SPLIT DATASET 80:20
+        # =========================
+
+        train_size = int(len(scaled) * 0.8)
+
+        train_data = scaled[:train_size]
+        test_data = scaled[train_size:]
+
+        # =========================
+        # SEQUENCE TRAINING
+        # =========================
 
         timestep = 7
 
-        for i in range(timestep, len(scaled)):
-            X.append(scaled[i-timestep:i, 0])
-            y.append(scaled[i,0])
+        X_train = []
+        y_train = []
 
-        X = np.array(X)
-        y = np.array(y)
+        for i in range(timestep, len(train_data)):
 
-        X = np.reshape(X, (X.shape[0], X.shape[1], 1))
+            X_train.append(
+                train_data[i-timestep:i, 0]
+            )
+
+            y_train.append(
+                train_data[i, 0]
+            )
+
+        # =========================
+        # SEQUENCE TESTING
+        # =========================
+
+        X_test = []
+        y_test = []
+
+        for i in range(timestep, len(test_data)):
+
+            X_test.append(
+                test_data[i-timestep:i, 0]
+            )
+
+            y_test.append(
+                test_data[i, 0]
+            )
+
+        X_train = np.array(X_train)
+        y_train = np.array(y_train)
+
+        X_test = np.array(X_test)
+        y_test = np.array(y_test)
+
+        X_train = np.reshape(
+            X_train,
+            (X_train.shape[0], X_train.shape[1], 1)
+        )
+
+        X_test = np.reshape(
+            X_test,
+            (X_test.shape[0], X_test.shape[1], 1)
+        )
+
+        X_train = np.reshape(
+            X_train,
+            (X_train.shape[0], X_train.shape[1], 1)
+        )
+
+        X_test = np.reshape(
+            X_test,
+            (X_test.shape[0], X_test.shape[1], 1)
+        )
 
         model = Sequential()
 
-        model.add(LSTM(50, return_sequences=False,
-                       input_shape=(X.shape[1],1)))
+        model.add(LSTM(50, return_sequences=False, input_shape=(X_train.shape[1],1)))
 
         model.add(Dense(1))
 
@@ -63,23 +125,154 @@ def train_model():
             loss='mean_squared_error'
         )
 
-        model.fit(
-            X,
-            y,
+        history = model.fit(
+            X_train,
+            y_train,
             epochs=20,
             batch_size=1,
             verbose=0
         )
 
+        epoch = 20
+
+        loss = float(
+            history.history['loss'][-1]
+        )
+
+        y_pred = model.predict(
+            X_test,
+            verbose=0
+        )
+
+        actual = scaler.inverse_transform(
+            y_test.reshape(-1,1)
+        )
+
+        predicted = scaler.inverse_transform(
+            y_pred
+        )
+
+        testing_predictions = []
+
+        for i in range(len(actual)):
+
+            testing_predictions.append({
+
+                "aktual": float(actual[i][0]),
+
+                "prediksi": float(predicted[i][0]),
+
+                "selisih": float(
+                    abs(
+                        actual[i][0] -
+                        predicted[i][0]
+                    )
+                )
+            })
+
+        mae = mean_absolute_error(
+            actual,
+            predicted
+        )
+
+        rmse = np.sqrt(
+            mean_squared_error(
+                actual,
+                predicted
+            )
+        )
+
+        mape = mean_absolute_percentage_error(
+            actual,
+            predicted
+        ) * 100
+
+        tanggal = data['tanggal']
+
+        # =========================
+        # HISTORICAL PREDICTION
+        # =========================
+
+        X_all = []
+        y_all = []
+
+        for i in range(timestep, len(scaled)):
+
+            X_all.append(
+                scaled[i-timestep:i, 0]
+            )
+
+            y_all.append(
+                scaled[i, 0]
+            )
+
+        X_all = np.array(X_all)
+        y_all = np.array(y_all)
+
+        X_all = np.reshape(
+            X_all,
+            (X_all.shape[0], X_all.shape[1], 1)
+        )
+
+        y_all_pred = model.predict(
+            X_all,
+            verbose=0
+        )
+
+        actual_full = scaler.inverse_transform(
+            y_all.reshape(-1,1)
+        )
+
+        pred_full = scaler.inverse_transform(
+            y_all_pred
+        )
+
+        pred_full = scaler.inverse_transform(
+            y_all_pred
+        )
+
+        historical_predictions = []
+
+        for i in range(len(actual_full)):
+
+            historical_predictions.append({
+                "tanggal": tanggal[i + timestep],
+                "aktual": float(actual_full[i][0]),
+                "prediksi": float(pred_full[i][0])
+            })
+
         # simpan model
         model.save('model/lstm_model.h5')
 
         # simpan scaler
-        joblib.dump(scaler, 'model/scaler.save')
+        joblib.dump(
+            scaler,
+            'model/scaler.save'
+        )
 
         return jsonify({
-            'status': 'success',
-            'message': 'Model berhasil ditraining'
+
+            "status": "success",
+
+            "mae": float(mae),
+
+            "rmse": float(rmse),
+
+            "mape": float(mape),
+
+            "epoch": epoch,
+
+            "loss": loss,
+
+            "loss_history": [
+                float(x)
+                for x in history.history['loss']
+            ],
+
+            "testing": testing_predictions,
+
+            "historical": historical_predictions
+
         })
 
     except Exception as e:

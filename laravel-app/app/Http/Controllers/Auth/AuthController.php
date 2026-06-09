@@ -15,30 +15,23 @@ class AuthController extends Controller
 
     public function loginProses(Request $request)
     {
-        try {
-            $credentials = $request->validate(
-                [
-                    'email' => ['required', 'email'],
-                    'password' => ['required'],
-                ],
-                [
-                    'email.required' => 'Email harus diisi.',
-                    'email.email' => 'Silakan masukkan alamat email yang valid.',
-                    'password.required' => 'Password harus diisi.',
-                ],
-            );
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required',
+        ]);
 
-            if (auth()->attempt($credentials)) {
-                $request->session()->regenerate();
-                return redirect()->intended(route('dashboard.index'));
-            }
+        if (
+            Auth::attempt([
+                'email' => $request->email,
+                'password' => $request->password,
+            ])
+        ) {
+            $request->session()->regenerate();
 
-            return back()->withErrors([
-                'email' => 'Kredensial yang diberikan tidak sesuai dengan catatan kami.',
-            ]);
-        } catch (\Exception $e) {
-            return back()->withErrors(['error' => 'Terjadi kesalahan selama login. Silakan coba lagi.']);
+            return redirect()->route('dashboard.index');
         }
+
+        return back()->withInput($request->only('email'))->with('error', 'Email atau password yang Anda masukkan salah.');
     }
 
     public function logout(Request $request)
