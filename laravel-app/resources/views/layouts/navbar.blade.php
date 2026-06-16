@@ -21,29 +21,20 @@
             </div>
         </div>
 
-        <button
-            class="relative p-2.5 text-slate-500 hover:text-emerald-600 hover:bg-slate-50 rounded-xl transition-all duration-200 cursor-pointer focus:outline-none">
-            <i class="bi bi-bell text-lg"></i>
-            <span
-                class="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white ring-2 ring-white">
-                3
-            </span>
-        </button>
-
         <div class="relative" x-data="{ open: false }" @click.away="open = false">
 
             <button @click="open = !open"
                 class="flex items-center gap-3 p-1.5 pr-3 hover:bg-slate-50 rounded-xl transition-all duration-200 text-left cursor-pointer focus:outline-none">
 
-                <img src="https://ui-avatars.com/api/?name={{ urlencode(session('nama') ?? 'Admin') }}&background=10b981&color=fff&bold=true"
+                <img src="https://ui-avatars.com/api/?name={{ urlencode(Auth::user()->name) }}&background=10b981&color=fff&bold=true"
                     alt="User Avatar" class="w-10 h-10 rounded-xl object-cover ring-2 ring-emerald-500/10">
 
                 <div class="hidden sm:block">
                     <div class="text-sm font-semibold text-slate-800 leading-tight">
-                        {{ session('nama') ?? 'Administrator' }}
+                        {{ Auth::user()->name }}
                     </div>
                     <div class="text-[11px] text-slate-400 font-medium mt-0.5">
-                        Pemilik Toko
+                        {{ Auth::user()->role == 'super_admin' ? 'Super Admin' : 'Admin' }}
                     </div>
                 </div>
 
@@ -60,10 +51,10 @@
                 class="absolute right-0 mt-2 w-52 bg-white rounded-2xl shadow-xl shadow-slate-200/80 border border-slate-100 py-2 z-30"
                 style="display: none;">
 
-                <a href="#"
+                <a href="/profil"
                     class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-emerald-600 transition-colors">
                     <i class="bi bi-person text-base text-slate-400"></i>
-                    <span>Profil Warung</span>
+                    <span>Profil</span>
                 </a>
 
                 <div class="my-1.5 border-t border-slate-100"></div>

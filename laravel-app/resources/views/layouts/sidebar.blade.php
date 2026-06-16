@@ -51,6 +51,15 @@
                 <span>Hasil Prediksi 7 Hari</span>
             </a>
 
+            @if (Auth::user()->role == 'super_admin')
+                <a href="/manajemen-user"
+                    class="flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 no-underline
+                {{ $current == 'manajemen-user' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-950/50' : 'text-slate-400 hover:bg-slate-800/50 hover:text-white' }}">
+                    <i class="bi bi-people text-base"></i>
+                    <span>Manajemen User</span>
+                </a>
+            @endif
+
         </nav>
     </div>
 

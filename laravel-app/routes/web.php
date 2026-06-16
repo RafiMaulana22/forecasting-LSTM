@@ -5,6 +5,8 @@ use App\Http\Controllers\Admin\DetailForecastingController;
 use App\Http\Controllers\Admin\ForecastingController;
 use App\Http\Controllers\Admin\HasilPrediksiController;
 use App\Http\Controllers\Admin\PendapatanController;
+use App\Http\Controllers\Admin\ProfilController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Support\Facades\Route;
 
@@ -48,4 +50,16 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/detail-forecasting/testing', [DetailForecastingController::class, 'testing'])->name('detail-forecasting.testing');
     Route::get('/detail-forecasting/evaluasi', [DetailForecastingController::class, 'evaluasi'])->name('detail-forecasting.evaluasi');
     Route::get('/detail-forecasting/forecast', [DetailForecastingController::class, 'forecast'])->name('detail-forecasting.forecast');
+
+    // Admin Manajemen User Route
+    Route::get('/manajemen-user', [UserController::class, 'index'])->name('manajemen-user.index');
+    Route::post('/manajemen-user', [UserController::class, 'store'])->name('users.store');
+    Route::post('/manajemen-user/{user}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
+    Route::post('/manajemen-user/{user}/status', [UserController::class, 'status'])->name('users.status');
+    Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
+
+    // Admin Profil Route
+    Route::get('/profil', [ProfilController::class, 'index'])->name('profil.index');
+    Route::post('/profil', [ProfilController::class, 'update'])->name('profil.update');
+    Route::post('/password', [ProfilController::class, 'updatePassword'])->name('profil.password');
 });
